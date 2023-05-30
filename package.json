@@ -1,12 +1,11 @@
 {
-  "name": "strapi-provider-upload-azure-storage",
-  "version": "3.1.3",
+  "name": "strapi-provider-upload-private-azure-storage",
+  "version": "1.0.0",
   "license": "MIT",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint . --ext .js,.ts",
-    "prebuild": "rm -rf dist",
     "prepublishOnly": "yarn build"
   },
   "directories": {
@@ -18,7 +17,7 @@
   "strapi": {
     "isProvider": true
   },
-  "repository": "https://github.com/jakeFeldman/strapi-provider-upload-azure-storage",
+  "repository": "https://github.com/fperreaultnv/strapi-provider-upload-azure-storage",
   "homepage": "http://strapi.io",
   "keywords": [
     "upload",
@@ -30,7 +29,7 @@
     "@types/node": "^18.13.0",
     "@typescript-eslint/eslint-plugin": "^5.51.0",
     "@typescript-eslint/parser": "^5.51.0",
-    "eslint": "^8.34.0",
+    "eslint": "^8.28.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-simple-import-sort": "^10.0.0",
