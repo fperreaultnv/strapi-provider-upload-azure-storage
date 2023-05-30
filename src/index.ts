@@ -9,7 +9,6 @@ type Config = {
     defaultPath: string
     cdnBaseURL?: string
     createContainerIfNotExists?: boolean
-    containerAccessType?: 'private' | 'blob' | 'container'
 }
 
 type StrapiFile = File & {
@@ -34,16 +33,12 @@ function makeBlobServiceClient(config: Config) {
     const pipeline = newPipeline(credential)
     const blobServiceClient = new BlobServiceClient(config.serviceBaseURL!, pipeline)
     if (config.createContainerIfNotExists!) {
-        const containerClient = getContainerClient(blobServiceClient, config)
-        containerClient.createIfNotExists({ access: config.containerAccessType == 'private' ? undefined : config.containerAccessType })
+        const containerClient = blobServiceClient.getContainerClient(config.containerName)
+        containerClient.createIfNotExists()
             .then((response) => console.log(`container ${config.containerName} ${response.succeeded ? 'created successfully' : 'already existed'}`))
     }
 
     return blobServiceClient
-}
-
-function getContainerClient(blobServiceClient: BlobServiceClient, config: Config) {
-    return blobServiceClient.getContainerClient(config.containerName)
 }
 
 const uploadOptions = {
@@ -56,20 +51,15 @@ async function handleUpload(
     blobSvcClient: BlobServiceClient,
     file: StrapiFile
 ): Promise<void> {
-    const containerClient = getContainerClient(blobSvcClient, config)
+    const containerClient = blobSvcClient.getContainerClient(config.containerName)
     const filename = getFileName(config.defaultPath, file)
     const client = containerClient.getBlockBlobClient(filename)
     const options = {
         blobHTTPHeaders: { blobContentType: file.mime },
     }
 
-    const url = config.containerAccessType === 'private' ? 
-        await client.generateSasUrl({
-            permissions: BlobSASPermissions.from({ read: true }),
-            expiresOn: new Date(3000, 0),
-        }) : client.url
+    file.url = config.cdnBaseURL ? client.url.replace(config.serviceBaseURL!, config.cdnBaseURL) : client.url
 
-    file.url = config.cdnBaseURL ? url.replace(config.serviceBaseURL!, config.cdnBaseURL) : url
     await client.uploadStream(
         file.stream,
         uploadOptions.bufferSize,
@@ -87,6 +77,40 @@ async function handleDelete(
     const client = containerClient.getBlobClient(getFileName(config.defaultPath, file))
     await client.deleteIfExists()
     file.url = client.url
+}
+
+async function getSignedUrl(
+    config: Config,
+    blobSvcClient: BlobServiceClient,
+    file: StrapiFile
+): Promise<{ url: string }> {
+    const containerClient = blobSvcClient.getContainerClient(config.containerName)
+    const client = containerClient.getBlobClient(getFileName(config.defaultPath, file))
+    
+    const expiresOn = new Date();
+    expiresOn.setDate(expiresOn.getDate() + 1)
+
+    // we can generate the sas url directly here because this getSignedUrl function won't be called by strapi if the container is not private.
+    // see isPrivate() implementation and https://github.com/strapi/strapi/blob/4f63cb517f3c24b670a94c37d4fbe3ed2d2cb89b/packages/core/upload/server/services/file.js#L29
+    const url = await client.generateSasUrl({
+        permissions: BlobSASPermissions.from({ read: true }),
+        expiresOn
+    })
+
+    return { url };
+}
+
+async function isPrivate(config: Config, blobSvcClient: BlobServiceClient): Promise<boolean> {
+    const container = blobSvcClient.getContainerClient(config.containerName)
+    if (await container.exists()) {
+        const properties = await container.getProperties()
+        return properties.blobPublicAccess === undefined
+    } else if (config.createContainerIfNotExists!) {
+        await container.createIfNotExists()
+        return isPrivate(config, blobSvcClient)
+    }
+
+    throw new Error(`upload provider error : container ${config.containerName} does not exist. Either use createContainerIfNotExists or create the container manually in ${config.account} storage account.`);
 }
 
 module.exports = {
@@ -133,21 +157,26 @@ module.exports = {
             createContainerIfNotExists: config.createContainerIfNotExists === undefined ? true : config.createContainerIfNotExists,
             defaultPath: trimParam(config.defaultPath),
             cdnBaseURL: trimParam(config.cdnBaseURL),
-            containerAccessType: config.containerAccessType,
             serviceBaseURL: trimParam(config.serviceBaseURL) || `https://${trimParam(config.account)}.blob.core.windows.net`,
         }
 
         const blobSvcClient = makeBlobServiceClient(config)
         return {
-            upload(file: StrapiFile) {
-                return handleUpload(config, blobSvcClient, file)
+            async upload(file: StrapiFile) {
+                await handleUpload(config, blobSvcClient, file)
             },
-            uploadStream(file: StrapiFile) {
-                return handleUpload(config, blobSvcClient, file)
+            async uploadStream(file: StrapiFile) {
+                await handleUpload(config, blobSvcClient, file)
             },
-            delete(file: StrapiFile) {
-                return handleDelete(config, blobSvcClient, file)
+            async delete(file: StrapiFile) {
+                await handleDelete(config, blobSvcClient, file)
             },
+            async getSignedUrl(file: StrapiFile) {
+                return await getSignedUrl(config, blobSvcClient, file)
+            },
+            async isPrivate() {
+                return await isPrivate(config, blobSvcClient)
+            }
         }
     },
 }

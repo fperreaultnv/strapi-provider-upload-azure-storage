@@ -47,8 +47,7 @@ module.exports = ({ env }) => ({
         containerName: env("STORAGE_CONTAINER_NAME"),
         defaultPath: "assets",
         cdnBaseURL: env("STORAGE_CDN_URL"), // optional
-        createContainerIfNotExists: true,
-        containerAccessType: 'private'
+        createContainerIfNotExists: true, // optional, defaults to true
       },
     },
   },
@@ -64,7 +63,6 @@ module.exports = ({ env }) => ({
 | defaultPath  | yes     | The path to use when there is none being specified. Defaults to `assets` |
 | cdnBaseURL  | no     | CDN base url |
 | createContainerIfNotExisits | no | Indicates whether the plugin should create the specified container if it doesn't exist.
-| containerAccessType | no | The configured container access type. One of 'private', 'container' or 'blob'. Defaults to 'private'
 
 ### Security Middleware Configuration
 
@@ -106,9 +104,7 @@ When running Azurite in Docker, `serviceBaseURL` should be used with a URL that 
 
 `cdnBaseURL` is optional, it is useful when using CDN in front of your storage account. Images will be returned with the CDN URL instead of the storage account URL.
 
-`createContainerIfNotExists` is optional, and defaults to `true`.
-
-`containerAccessType` is optional, and defaults to `'private'`.
+`createContainerIfNotExists` is optional, and defaults to `true`. The container will be created as private.
 
 ## Contributing
 
