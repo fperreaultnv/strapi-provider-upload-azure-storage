@@ -102,7 +102,7 @@ export default [
 
 `serviceBaseURL` is optional, it is useful when connecting to Azure Storage API compatible services, like the official emulator [Azurite](https://github.com/Azure/Azurite/). `serviceBaseURL` would then look like `http://localhost:10000/your-storage-account`.
 When `serviceBaseURL` is not provided, default `https://${account}.blob.core.windows.net` will be used.
-When running Azurite in Docker, `serviceBaseURL` should be used with a URL that looks like : `http://host.docker.internal/10000`
+When running Azurite in Docker, `serviceBaseURL` should be used with a URL that looks like : `http://host.docker.internal:10000`
 
 `cdnBaseURL` is optional, it is useful when using CDN in front of your storage account. Images will be returned with the CDN URL instead of the storage account URL.
 
